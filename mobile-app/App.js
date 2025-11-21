@@ -15,11 +15,13 @@ import ConfiguracoesScreen from './screens/ConfiguracoesScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import HistoricoCorridasScreen from './screens/HistoricoCorridasScreen';
 import MetasScreen from './screens/MetasScreen';
+import PrivacyPolicyScreen from './screens/PrivacyPolicyScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-function HomeStack() {
+// Stack do Dashboard - Dashboard, Relatórios e Metas
+function DashboardStack() {
   return (
     <Stack.Navigator
       screenOptions={{
@@ -38,28 +40,103 @@ function HomeStack() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
+        name="Relatorios"
+        component={RelatoriosScreen}
+        options={{
+          title: 'Relatórios',
+          presentation: 'card',
+        }}
+      />
+      <Stack.Screen
+        name="Metas"
+        component={MetasScreen}
+        options={{
+          title: 'Metas e Objetivos',
+          presentation: 'card',
+        }}
+      />
+    </Stack.Navigator>
+  );
+}
+
+// Stack de Entradas - Capturar Corrida e Histórico
+function EntradaStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#8B5CF6',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen
         name="CapturarCorrida"
         component={CapturarCorridaScreen}
         options={{
           title: 'Capturar Corrida',
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="HistoricoCorridas"
+        component={HistoricoCorridasScreen}
+        options={{
+          title: 'Histórico de Corridas',
           presentation: 'card',
         }}
       />
+    </Stack.Navigator>
+  );
+}
+
+// Stack de Saídas - Adicionar Despesa
+function SaidasStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#8B5CF6',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
       <Stack.Screen
         name="AdicionarDespesa"
         component={AdicionarDespesaScreen}
         options={{
           title: 'Adicionar Despesa',
-          presentation: 'card',
+          headerShown: true,
         }}
       />
+    </Stack.Navigator>
+  );
+}
+
+// Stack de Perfil
+function ProfileStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#8B5CF6',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
       <Stack.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{
-          title: 'Perfil',
-          presentation: 'card',
-        }}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="HistoricoCorridas"
@@ -81,6 +158,37 @@ function HomeStack() {
   );
 }
 
+// Stack de Configurações
+function ConfiguracoesStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle: {
+          backgroundColor: '#8B5CF6',
+        },
+        headerTintColor: '#fff',
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+      }}
+    >
+      <Stack.Screen
+        name="Configuracoes"
+        component={ConfiguracoesScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
+        options={{
+          title: 'Política de Privacidade',
+          presentation: 'card',
+        }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function AppContent() {
   const { theme } = useTheme();
   
@@ -93,10 +201,12 @@ function AppContent() {
               tabBarIcon: ({ focused, color, size }) => {
                 let iconName;
 
-                if (route.name === 'Home') {
+                if (route.name === 'Dashboard') {
                   iconName = focused ? 'home' : 'home-outline';
-                } else if (route.name === 'Relatorios') {
-                  iconName = focused ? 'bar-chart' : 'bar-chart-outline';
+                } else if (route.name === 'Entrada') {
+                  iconName = focused ? 'add-circle' : 'add-circle-outline';
+                } else if (route.name === 'Saidas') {
+                  iconName = focused ? 'remove-circle' : 'remove-circle-outline';
                 } else if (route.name === 'Profile') {
                   iconName = focused ? 'person' : 'person-outline';
                 } else if (route.name === 'Configuracoes') {
@@ -119,23 +229,28 @@ function AppContent() {
             })}
           >
             <Tab.Screen
-              name="Home"
-              component={HomeStack}
+              name="Dashboard"
+              component={DashboardStack}
               options={{ title: 'Dashboard' }}
             />
             <Tab.Screen
-              name="Relatorios"
-              component={RelatoriosScreen}
-              options={{ title: 'Relatórios' }}
+              name="Entrada"
+              component={EntradaStack}
+              options={{ title: 'Entrada' }}
+            />
+            <Tab.Screen
+              name="Saidas"
+              component={SaidasStack}
+              options={{ title: 'Saídas' }}
             />
             <Tab.Screen
               name="Profile"
-              component={ProfileScreen}
+              component={ProfileStack}
               options={{ title: 'Perfil' }}
             />
             <Tab.Screen
               name="Configuracoes"
-              component={ConfiguracoesScreen}
+              component={ConfiguracoesStack}
               options={{ title: 'Configurações' }}
             />
           </Tab.Navigator>

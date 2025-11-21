@@ -250,6 +250,20 @@ export default function ProfileScreen({ navigation }) {
           </View>
           <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
         </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.actionItem}
+          onPress={() => navigation.navigate('PrivacyPolicy')}
+        >
+          <View style={styles.actionIconContainer}>
+            <Ionicons name="shield-checkmark-outline" size={24} color="#6B7280" />
+          </View>
+          <View style={styles.actionContent}>
+            <Text style={styles.actionTitle}>Política de Privacidade</Text>
+            <Text style={styles.actionSubtitle}>Como protegemos seus dados</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+        </TouchableOpacity>
       </Card>
 
       {/* Sobre */}

@@ -252,13 +252,13 @@ export default function DashboardScreen({ navigation }) {
       <View style={styles.actionsContainer}>
         <Button
           title="📸 Capturar Corrida"
-          onPress={() => navigation.navigate('CapturarCorrida')}
+          onPress={() => navigation.getParent()?.navigate('Entrada')}
           icon={<Ionicons name="camera-outline" size={20} color="#FFFFFF" />}
           style={styles.actionButton}
         />
         <Button
           title="💰 Adicionar Despesa"
-          onPress={() => navigation.navigate('AdicionarDespesa')}
+          onPress={() => navigation.getParent()?.navigate('Saidas')}
           variant="outline"
           icon={<Ionicons name="add-circle-outline" size={20} color="#8B5CF6" />}
           style={styles.actionButton}
