@@ -1,7 +1,7 @@
 # Corrida Certa Backend - Sistema Multi-Tenant com Supabase e Stripe
 
 Backend completo para o aplicativo Corrida Certa, construído com arquitetura multi-tenant, integração com Supabase para banco de dados e Stripe para pagamentos.
-
+.
 ## 🏗️ Arquitetura
 
 - **Multi-Tenant**: Sistema isolado por organização (tenant)
