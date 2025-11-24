@@ -16,10 +16,17 @@ import Button from '../components/Button';
 import { StorageService } from '../services/storage';
 import AnaliseService from '../services/analiseCorridas';
 import { Formatters } from '../utils/formatters';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/authService';
 
 
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const [userProfile, setUserProfile] = useState({
+    name: 'Motorista',
+    email: 'driverflow@exemplo.com',
+  });
   const [estatisticas, setEstatisticas] = useState({
     totalCorridas: 0,
     totalReceitas: 0,
@@ -41,18 +48,56 @@ export default function ProfileScreen({ navigation }) {
   const [perfilTrabalho, setPerfilTrabalho] = useState('misto');
 
   useEffect(() => {
+    loadUserProfile();
     loadData();
     loadVeiculo();
   }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      loadUserProfile();
       loadData();
       loadVeiculo();
     });
 
     return unsubscribe;
   }, [navigation]);
+
+  const loadUserProfile = async () => {
+    try {
+      if (!user?.id) {
+        return;
+      }
+
+      // Buscar perfil do usuário no Supabase
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .single();
+
+      if (!error && profile) {
+        setUserProfile({
+          name: profile.full_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'Motorista',
+          email: profile.email || user.email || 'driverflow@exemplo.com',
+        });
+      } else {
+        // Se não encontrar no perfil, usar dados do auth
+        setUserProfile({
+          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Motorista',
+          email: user.email || 'driverflow@exemplo.com',
+        });
+      }
+    } catch (error) {
+      // Em caso de erro, usar dados do auth
+      if (user) {
+        setUserProfile({
+          name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Motorista',
+          email: user.email || 'driverflow@exemplo.com',
+        });
+      }
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -157,8 +202,8 @@ export default function ProfileScreen({ navigation }) {
             <Ionicons name="camera" size={16} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
-        <Text style={styles.userName}>Motorista</Text>
-        <Text style={styles.userEmail}>driverflow@exemplo.com</Text>
+        <Text style={styles.userName}>{userProfile.name}</Text>
+        <Text style={styles.userEmail}>{userProfile.email}</Text>
       </View>
 
       {/* Estatísticas Rápidas */}

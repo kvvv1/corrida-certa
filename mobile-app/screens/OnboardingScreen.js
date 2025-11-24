@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../services/authService';
+import { supabase, AuthService } from '../services/authService';
 import { StorageService } from '../services/storage';
 import { logger } from '../utils/logger';
 
@@ -85,12 +85,10 @@ export default function OnboardingScreen({ navigation }) {
         return;
       }
 
-      // Buscar organização do usuário (verificar se já existe antes de criar)
-      let profile = null;
+      // Verificar se organização já existe ou criar uma nova
       let organizationId = null;
-
-      // Primeiro, verificar se já existe uma organização para este usuário
-      logger.debug('Verificando se organização já existe para o usuário...');
+      
+      logger.debug('Verificando se organização já existe...');
       const { data: existingOrg, error: orgCheckError } = await supabase
         .from('organizations')
         .select('id')
@@ -99,173 +97,79 @@ export default function OnboardingScreen({ navigation }) {
         .single();
 
       if (existingOrg && !orgCheckError) {
-        // Organização já existe
+        // Organização já existe (criada pelo trigger)
         organizationId = existingOrg.id;
         logger.debug('Organização encontrada:', organizationId);
-        
-        // Verificar se o perfil existe e atualizar se necessário
-        const { data: existingProfile, error: profileCheckError } = await supabase
-          .from('user_profiles')
-          .select('current_organization_id')
-          .eq('id', user.id)
-          .single();
-
-        if (existingProfile) {
-          profile = existingProfile;
-          // Se o perfil não tem organization_id, atualizar
-          if (!existingProfile.current_organization_id) {
-            await supabase
-              .from('user_profiles')
-              .update({ current_organization_id: organizationId })
-              .eq('id', user.id);
-          }
-        } else if (profileCheckError?.code === 'PGRST116') {
-          // Perfil não existe, criar
-          logger.debug('Perfil não encontrado - criando perfil...');
-          const { error: profileError } = await supabase
-            .from('user_profiles')
-            .insert({
-              id: user.id,
-              email: user.email || '',
-              full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário',
-              current_organization_id: organizationId,
-            });
-
-          if (profileError) {
-            logger.error('Erro ao criar perfil:', profileError);
-            // Continuar mesmo assim se a organização existe
-          }
-        }
       } else {
-        // Organização não existe - verificar perfil primeiro
-        logger.debug('Organização não encontrada - verificando perfil...');
-        const { data: profileData, error: profileError } = await supabase
-          .from('user_profiles')
-          .select('current_organization_id')
-          .eq('id', user.id)
+        // Organização não existe - criar uma nova
+        logger.debug('Organização não encontrada - criando nova...');
+        const orgName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Minha Organização';
+        const orgSlug = `org-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const { data: newOrg, error: orgError } = await supabase
+          .from('organizations')
+          .insert({
+            name: orgName,
+            slug: orgSlug,
+            owner_id: user.id,
+            subscription_status: 'trial',
+            subscription_plan: 'free',
+          })
+          .select()
           .single();
 
-        if (profileError && profileError.code === 'PGRST116') {
-          // Nem perfil nem organização existem - criar ambos
-          logger.debug('Perfil e organização não encontrados - criando ambos...');
-          
-          try {
-            // Criar organização
-            const orgName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Minha Organização';
-            const orgSlug = `org-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            
-            logger.debug('Tentando criar organização:', { name: orgName, slug: orgSlug, owner_id: user.id });
-            
-            const { data: newOrg, error: orgError } = await supabase
-              .from('organizations')
-              .insert({
-                name: orgName,
-                slug: orgSlug,
-                owner_id: user.id,
-                subscription_status: 'trial',
-                subscription_plan: 'free',
-              })
-              .select()
-              .single();
-
-            if (orgError) {
-              // Se o erro for de recursão RLS, aguardar um pouco e tentar novamente
-              if (orgError.code === '42P17') {
-                logger.warn('Erro de recursão RLS detectado - aguardando e tentando novamente...');
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Tentar buscar a organização novamente (pode ter sido criada pelo trigger)
-                const { data: retryOrg } = await supabase
-                  .from('organizations')
-                  .select('id')
-                  .eq('owner_id', user.id)
-                  .limit(1)
-                  .single();
-                
-                if (retryOrg) {
-                  organizationId = retryOrg.id;
-                  logger.debug('Organização encontrada após retry:', organizationId);
-                } else {
-                  logger.error('Erro ao criar organização (após retry):', orgError);
-                  Alert.alert('Erro', 'Não foi possível criar a organização. Por favor, tente fazer logout e login novamente.');
-                  setLoading(false);
-                  return;
-                }
-              } else {
-                logger.error('Erro ao criar organização:', orgError);
-                Alert.alert('Erro', `Não foi possível criar a organização: ${orgError.message || 'Erro desconhecido'}`);
-                setLoading(false);
-                return;
-              }
-            } else {
-              organizationId = newOrg.id;
-              logger.debug('Organização criada com sucesso:', organizationId);
-            }
-
-            // Se a organização foi criada, adicionar como membro (se ainda não for)
-            if (organizationId) {
-              const { error: memberError } = await supabase
-                .from('organization_members')
-                .insert({
-                  organization_id: organizationId,
-                  user_id: user.id,
-                  role: 'owner',
-                  joined_at: new Date().toISOString(),
-                })
-                .select();
-
-              if (memberError && !memberError.message.includes('duplicate')) {
-                logger.error('Erro ao adicionar membro:', memberError);
-                // Continuar mesmo assim
-              }
-
-              // Criar perfil
-              const { error: profileCreateError } = await supabase
-                .from('user_profiles')
-                .insert({
-                  id: user.id,
-                  email: user.email || '',
-                  full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário',
-                  current_organization_id: organizationId,
-                });
-
-              if (profileCreateError && !profileCreateError.message.includes('duplicate')) {
-                logger.error('Erro ao criar perfil:', profileCreateError);
-                // Continuar mesmo assim se a organização foi criada
-              }
-
-              // Criar configurações padrão (ignorar erro se já existir)
-              await supabase
-                .from('organization_settings')
-                .insert({
-                  organization_id: organizationId,
-                });
-
-              logger.debug('Organização e perfil criados com sucesso:', organizationId);
-            }
-          } catch (createError) {
-            logger.error('Erro ao criar organização/perfil:', createError);
-            Alert.alert('Erro', 'Não foi possível criar a organização. Verifique sua conexão e tente novamente.');
-            setLoading(false);
-            return;
-          }
-        } else if (profileData) {
-          // Perfil existe mas sem organização
-          profile = profileData;
-          organizationId = profileData?.current_organization_id;
-          
-          if (!organizationId) {
-            logger.warn('Perfil existe mas sem organização - isso não deveria acontecer');
-            Alert.alert('Erro', 'Organização não encontrada. Por favor, faça logout e login novamente.');
-            setLoading(false);
-            return;
-          }
-        } else if (profileError) {
-          logger.error('Erro ao buscar perfil:', profileError);
-          Alert.alert('Erro', 'Não foi possível buscar o perfil. Tente novamente.');
+        if (orgError) {
+          logger.error('Erro ao criar organização:', orgError);
+          Alert.alert('Erro', `Não foi possível criar a organização: ${orgError.message || 'Erro desconhecido'}`);
           setLoading(false);
           return;
         }
+
+        if (!newOrg) {
+          logger.error('Organização criada mas não retornada');
+          Alert.alert('Erro', 'Não foi possível criar a organização. Tente novamente.');
+          setLoading(false);
+          return;
+        }
+
+        organizationId = newOrg.id;
+        logger.debug('Organização criada com sucesso:', organizationId);
+
+        // Adicionar como membro (se ainda não for)
+        await supabase
+          .from('organization_members')
+          .insert({
+            organization_id: organizationId,
+            user_id: user.id,
+            role: 'owner',
+            joined_at: new Date().toISOString(),
+          })
+          .select();
+
+        // Criar/atualizar perfil
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .upsert({
+            id: user.id,
+            email: user.email || '',
+            full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Usuário',
+            current_organization_id: organizationId,
+          }, {
+            onConflict: 'id',
+          });
+
+        if (profileError) {
+          logger.warn('Erro ao criar/atualizar perfil:', profileError);
+          // Continuar mesmo assim se a organização foi criada
+        }
+
+        // Criar configurações padrão (ignorar erro se já existir)
+        await supabase
+          .from('organization_settings')
+          .insert({
+            organization_id: organizationId,
+          })
+          .select();
       }
 
       if (!organizationId) {
@@ -274,6 +178,8 @@ export default function OnboardingScreen({ navigation }) {
         setLoading(false);
         return;
       }
+
+      logger.debug('Organização garantida:', organizationId);
 
       // 1. Salvar veículo
       let vehicleId = null;

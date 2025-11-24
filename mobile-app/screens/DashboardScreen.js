@@ -35,6 +35,14 @@ export default function DashboardScreen({ navigation }) {
     corridasHoje: 0,
     margemLucro: 0,
   });
+  const [tendencias, setTendencias] = useState({
+    receitas: { valor: 0, isPositive: true },
+    despesas: { valor: 0, isPositive: false },
+  });
+  const [chartData, setChartData] = useState({
+    labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+    datasets: [{ data: [0, 0, 0, 0, 0, 0, 0] }],
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -42,6 +50,14 @@ export default function DashboardScreen({ navigation }) {
     try {
       const stats = await AnaliseService.calcularEstatisticas();
       setEstatisticas(stats);
+      
+      // Carregar dados reais para o gráfico
+      const realChartData = await getChartData();
+      setChartData(realChartData);
+      
+      // Calcular tendências reais
+      const tendenciasReais = await calcularTendencias();
+      setTendencias(tendenciasReais);
     } catch (error) {
       console.error('Erro ao carregar estatísticas:', error);
     } finally {
@@ -72,20 +88,148 @@ export default function DashboardScreen({ navigation }) {
     return '#6B7280';
   };
 
-  // Dados para o gráfico (últimos 7 dias)
-  const getChartData = () => {
-    // Simulando dados de exemplo
-    // Em produção, você pegaria dados reais dos últimos 7 dias
-    return {
-      labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
-      datasets: [
-        {
-          data: [200, 300, 250, 400, 350, 450, 500],
-          color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
-          strokeWidth: 2,
+  // Calcula tendências comparando período atual com período anterior
+  const calcularTendencias = async () => {
+    try {
+      const corridas = await StorageService.getCorridas();
+      const despesas = await StorageService.getDespesas();
+      
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      
+      // Período atual: últimos 30 dias
+      const trintaDiasAtras = new Date(hoje.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      // Período anterior: 30 dias antes do período atual (dias 31-60)
+      const sessentaDiasAtras = new Date(hoje.getTime() - 60 * 24 * 60 * 60 * 1000);
+      
+      // Filtrar corridas e despesas do período atual
+      const corridasAtual = corridas.filter(c => {
+        const data = new Date(c.createdAt);
+        return data >= trintaDiasAtras && data < hoje;
+      });
+      
+      const despesasAtual = despesas.filter(d => {
+        const data = new Date(d.createdAt);
+        return data >= trintaDiasAtras && data < hoje;
+      });
+      
+      // Filtrar corridas e despesas do período anterior
+      const corridasAnterior = corridas.filter(c => {
+        const data = new Date(c.createdAt);
+        return data >= sessentaDiasAtras && data < trintaDiasAtras;
+      });
+      
+      const despesasAnterior = despesas.filter(d => {
+        const data = new Date(d.createdAt);
+        return data >= sessentaDiasAtras && data < trintaDiasAtras;
+      });
+      
+      // Calcular totais
+      const receitasAtual = corridasAtual.reduce((sum, c) => sum + (c.valor || 0), 0);
+      const receitasAnterior = corridasAnterior.reduce((sum, c) => sum + (c.valor || 0), 0);
+      
+      const despesasAtualTotal = despesasAtual.reduce((sum, d) => sum + (d.valor || 0), 0);
+      const despesasAnteriorTotal = despesasAnterior.reduce((sum, d) => sum + (d.valor || 0), 0);
+      
+      // Calcular variação percentual
+      const variacaoReceitas = receitasAnterior > 0
+        ? ((receitasAtual - receitasAnterior) / receitasAnterior) * 100
+        : receitasAtual > 0 ? 100 : 0; // Se não tinha antes e tem agora, é 100% de aumento
+      
+      const variacaoDespesas = despesasAnteriorTotal > 0
+        ? ((despesasAtualTotal - despesasAnteriorTotal) / despesasAnteriorTotal) * 100
+        : despesasAtualTotal > 0 ? 100 : 0;
+      
+      return {
+        receitas: {
+          valor: parseFloat(Math.abs(variacaoReceitas).toFixed(1)),
+          isPositive: variacaoReceitas >= 0, // Receitas aumentando é positivo
         },
-      ],
-    };
+        despesas: {
+          valor: parseFloat(Math.abs(variacaoDespesas).toFixed(1)),
+          isPositive: variacaoDespesas < 0, // Despesas diminuindo é positivo
+        },
+      };
+    } catch (error) {
+      console.error('Erro ao calcular tendências:', error);
+      return {
+        receitas: { valor: 0, isPositive: true },
+        despesas: { valor: 0, isPositive: false },
+      };
+    }
+  };
+
+  // Dados para o gráfico (últimos 7 dias) - DADOS REAIS
+  const getChartData = async () => {
+    try {
+      const corridas = await StorageService.getCorridas();
+      
+      // Calcular os últimos 7 dias
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      
+      // Array para armazenar receitas por dia (últimos 7 dias)
+      const receitasPorDia = [0, 0, 0, 0, 0, 0, 0];
+      
+      // Filtrar corridas dos últimos 7 dias
+      const seteDiasAtras = new Date(hoje.getTime() - 6 * 24 * 60 * 60 * 1000);
+      const corridasRecentes = corridas.filter(c => {
+        const dataCorrida = new Date(c.createdAt);
+        dataCorrida.setHours(0, 0, 0, 0);
+        return dataCorrida >= seteDiasAtras && dataCorrida <= hoje;
+      });
+      
+      // Agrupar por dia e somar receitas
+      corridasRecentes.forEach(corrida => {
+        const dataCorrida = new Date(corrida.createdAt);
+        dataCorrida.setHours(0, 0, 0, 0);
+        
+        // Calcular quantos dias atrás foi essa corrida (0 = hoje, 6 = 6 dias atrás)
+        const diasAtras = Math.floor((hoje - dataCorrida) / (24 * 60 * 60 * 1000));
+        
+        // Índice no array (0 = hoje, 6 = 6 dias atrás)
+        const indice = 6 - diasAtras;
+        
+        if (indice >= 0 && indice < 7) {
+          receitasPorDia[indice] += corrida.valor || 0;
+        }
+      });
+      
+      // Gerar labels dos dias da semana
+      const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      const labels = [];
+      
+      for (let i = 6; i >= 0; i--) {
+        const data = new Date(hoje.getTime() - i * 24 * 60 * 60 * 1000);
+        const diaSemana = diasSemana[data.getDay()];
+        labels.push(diaSemana);
+      }
+      
+      return {
+        labels,
+        datasets: [
+          {
+            data: receitasPorDia,
+            color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
+            strokeWidth: 2,
+          },
+        ],
+      };
+    } catch (error) {
+      console.error('Erro ao calcular dados do gráfico:', error);
+      // Retornar dados vazios em caso de erro
+      return {
+        labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+        datasets: [
+          {
+            data: [0, 0, 0, 0, 0, 0, 0],
+            color: (opacity = 1) => `rgba(139, 92, 246, ${opacity})`,
+            strokeWidth: 2,
+          },
+        ],
+      };
+    }
   };
 
   if (loading) {
@@ -148,8 +292,17 @@ export default function DashboardScreen({ navigation }) {
             </Text>
             <Text style={styles.metricLabel}>Receitas</Text>
             <View style={styles.metricTrend}>
-              <Ionicons name="arrow-up" size={12} color="#10B981" />
-              <Text style={styles.metricTrendText}>+12%</Text>
+              <Ionicons 
+                name={tendencias.receitas.isPositive ? "arrow-up" : "arrow-down"} 
+                size={12} 
+                color={tendencias.receitas.isPositive ? "#10B981" : "#EF4444"} 
+              />
+              <Text style={[
+                styles.metricTrendText,
+                !tendencias.receitas.isPositive && styles.metricTrendTextDanger
+              ]}>
+                {tendencias.receitas.isPositive ? '+' : '-'}{tendencias.receitas.valor}%
+              </Text>
             </View>
           </Card>
         </TouchableOpacity>
@@ -164,8 +317,17 @@ export default function DashboardScreen({ navigation }) {
             </Text>
             <Text style={styles.metricLabel}>Despesas</Text>
             <View style={styles.metricTrend}>
-              <Ionicons name="arrow-down" size={12} color="#EF4444" />
-              <Text style={[styles.metricTrendText, styles.metricTrendTextDanger]}>-5%</Text>
+              <Ionicons 
+                name={tendencias.despesas.isPositive ? "arrow-down" : "arrow-up"} 
+                size={12} 
+                color={tendencias.despesas.isPositive ? "#10B981" : "#EF4444"} 
+              />
+              <Text style={[
+                styles.metricTrendText,
+                !tendencias.despesas.isPositive && styles.metricTrendTextDanger
+              ]}>
+                {tendencias.despesas.isPositive ? '-' : '+'}{tendencias.despesas.valor}%
+              </Text>
             </View>
           </Card>
         </TouchableOpacity>
