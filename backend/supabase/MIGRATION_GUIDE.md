@@ -176,3 +176,5 @@ Se precisar desfazer uma migration:
 - [PostgreSQL Best Practices](https://www.postgresql.org/docs/current/ddl-alter.html)
 
 
+
+

@@ -179,3 +179,5 @@ Após configurar o Supabase:
 4. Configure o Stripe para pagamentos
 
 
+
+

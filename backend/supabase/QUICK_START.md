@@ -93,3 +93,5 @@ Quando houver uma nova migration:
 **Dúvidas?** Consulte `README.md` ou `SCHEMA_VERSION.md`
 
 
+
+

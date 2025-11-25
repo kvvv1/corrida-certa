@@ -293,3 +293,5 @@ eas build --platform android --profile production
 **Próxima revisão:** Após implementar ajustes
 
 
+
+

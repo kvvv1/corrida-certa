@@ -528,3 +528,5 @@ Se precisar de ajuda, consulte:
 - Suporte do Google Play: https://support.google.com/googleplay
 
 
+
+

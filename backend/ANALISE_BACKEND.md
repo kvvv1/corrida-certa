@@ -197,3 +197,5 @@ O backend foi projetado para ser:
 A arquitetura multi-tenant permite que o sistema seja usado tanto por indivíduos quanto por empresas, com isolamento completo de dados e suporte a múltiplos usuários por organização.
 
 
+
+

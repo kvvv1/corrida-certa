@@ -271,3 +271,5 @@ Para implementar o overlay como o Gigu, será necessário desenvolver o módulo 
 - [GigU Site Oficial](https://www.gigu.app/pt)
 
 
+
+

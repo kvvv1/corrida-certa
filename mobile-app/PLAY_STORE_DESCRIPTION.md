@@ -174,3 +174,5 @@ motorista, uber, 99, ifood, gestão financeira, corridas, despesas, receitas, an
 **Nota:** Personalize a descrição conforme necessário, mas mantenha as informações principais sobre funcionalidades e privacidade.
 
 
+
+

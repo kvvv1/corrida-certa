@@ -78,3 +78,5 @@ eas build --platform android --profile production
 **Última atualização:** 2024
 
 
+
+

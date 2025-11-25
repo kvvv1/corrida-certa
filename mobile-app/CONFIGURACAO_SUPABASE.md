@@ -97,3 +97,5 @@ No Supabase Dashboard:
 **Projeto Supabase:** wlfmhygheizuuyohcbyj
 
 
+
+

@@ -18,7 +18,7 @@ O erro `PGRST116 - Cannot coerce the result to a single JSON object` ocorre quan
 
 ## ✅ Solução
 
-Execute a migration `004_fix_rls_recursion_final.sql` no Supabase para corrigir definitivamente as políticas RLS.
+Execute a migration `005_fix_rls_recursion_definitive.sql` no Supabase para corrigir definitivamente as políticas RLS.
 
 **IMPORTANTE:** Esta é a versão mais recente e corrige o problema de recursão de forma definitiva.
 
@@ -31,12 +31,12 @@ Execute a migration `004_fix_rls_recursion_final.sql` no Supabase para corrigir 
 
 ### 2. Execute a Migration Mais Recente
 
-1. Abra o arquivo: `backend/supabase/versions/004_fix_rls_recursion_final.sql`
+1. Abra o arquivo: `backend/supabase/versions/005_fix_rls_recursion_definitive.sql`
 2. Copie todo o conteúdo
 3. Cole no SQL Editor do Supabase
 4. Clique em **Run** (ou pressione Ctrl+Enter)
 
-**Nota:** Se você já executou a migration 003, pode executar a 004 diretamente - ela substitui as políticas anteriores.
+**Nota:** Se você já executou migrations anteriores (003 ou 004), pode executar a 005 diretamente - ela substitui as políticas anteriores.
 
 ### 3. Verificar se Funcionou
 
@@ -62,14 +62,14 @@ Você deve ver as políticas:
 
 ## 🔍 O que a Correção Faz
 
-### Correção Definitiva de RLS (Migration 004)
+### Correção Definitiva de RLS (Migration 005)
 
 #### 1. Políticas de Organizations - SELECT (Correção Principal)
-- **ANTES (problemático)**: Verificava apenas através de `organization_members`, causando recursão
+- **ANTES (problemático)**: Verificava através de `organization_members`, causando recursão infinita
 - **AGORA (corrigido)**: 
-  - Primeiro verifica se é `owner` através de `owner_id = auth.uid()` (verificação direta, SEM recursão)
-  - Depois verifica se é membro através de `organization_members` (só se não for owner)
-  - Isso evita recursão porque a verificação de owner não depende de outras tabelas
+  - Verifica apenas se é `owner` através de `owner_id = auth.uid()` (verificação direta, SEM recursão)
+  - Remove completamente a verificação de `organization_members` da política SELECT
+  - Isso elimina a recursão porque não há mais dependência circular
 
 #### 2. Políticas de Organizations - INSERT
 - Permite criar organizações onde `owner_id = auth.uid()`
@@ -128,11 +128,11 @@ Se ainda houver problemas:
 
 ---
 
-**Arquivo da Migration:** `backend/supabase/versions/004_fix_rls_recursion_final.sql`  
-**Versão:** 4.0.0  
+**Arquivo da Migration:** `backend/supabase/versions/005_fix_rls_recursion_definitive.sql`  
+**Versão:** 5.0.0  
 **Data:** 2024-01-XX
 
 **Arquivos Modificados:**
-- `backend/supabase/versions/004_fix_rls_recursion_final.sql` (nova migração)
+- `backend/supabase/versions/005_fix_rls_recursion_definitive.sql` (nova migração - versão mais recente)
 - `mobile-app/screens/OnboardingScreen.js` (melhorias no tratamento de criação de organização)
 

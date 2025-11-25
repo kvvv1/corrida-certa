@@ -94,3 +94,5 @@ SELECT
     (SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema = 'public') as total_funcoes;
 
 
+
+
