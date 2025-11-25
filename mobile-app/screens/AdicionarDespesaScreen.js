@@ -142,7 +142,7 @@ export default function AdicionarDespesaScreen({ navigation }) {
 
         <View style={styles.footer}>
           <Button
-            title="💾 Salvar Despesa"
+            title="Salvar Despesa"
             onPress={salvarDespesa}
             loading={loading}
             style={styles.saveButton}
